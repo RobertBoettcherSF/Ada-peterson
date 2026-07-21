@@ -63,7 +63,7 @@ procedure Peterson_Tests is
 
    --  Helper function to format time span as string (Ada 95 compatible)
    function Time_Span_To_String (TS : Time_Span) return String is
-      Total_Seconds : constant Duration := Ada.Calendar.to_Duration(TS);
+      Total_Seconds : constant Duration := to_Duration(TS);
       Seconds : constant Integer := Integer(Total_Seconds);
       Millis : constant Integer := Integer((Total_Seconds - Duration(Seconds)) * 1000.0);
    begin
