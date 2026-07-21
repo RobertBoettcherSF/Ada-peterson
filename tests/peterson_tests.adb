@@ -8,9 +8,7 @@
 --  ====================================================================
 
 with Ada.Text_IO;           use Ada.Text_IO;
-with Ada.Integer_Text_IO;   use Ada.Integer_Text_IO;
 with Ada.Real_Time;         use Ada.Real_Time;
-with Ada.Calendar;
 
 procedure Peterson_Tests is
 
@@ -606,6 +604,11 @@ procedure Peterson_Tests is
    --  Assumption: Strict alternation can cause starvation if one process stops
    --  Test: Verify that if one process stops, the other can still proceed
    --  ====================================================================
+   --  ====================================================================
+   --  Test 8: Strict Alternation - Starvation Detection
+   --  Assumption: Strict alternation can cause starvation if one process stops
+   --  Test: Verify that if one process stops, the other starves
+   --  ====================================================================
    procedure Test_Strict_Alternation_Starvation is
       Turn : Integer range 0 .. 1 := 0;
       pragma Atomic (Turn);
@@ -629,7 +632,7 @@ procedure Peterson_Tests is
          end Start;
          Other := 1 - My_ID;
          
-         -- Process 0 stops after 1 iteration
+         -- Process 0 does only 1 iteration then stops
          if My_ID = 0 then
             while Turn /= My_ID loop
                delay 0.0;
@@ -638,21 +641,26 @@ procedure Peterson_Tests is
             Completion_Count (My_ID) := Completion_Count (My_ID) + 1;
             Turn := Other;
             Stop_Early (My_ID) := True;
-            -- Don't return, just finish the task normally
+            -- Task ends here after 1 iteration
+            
          else
-            -- Process 1 tries to continue
+            -- Process 1 tries to do 3 iterations
+            -- But it can only proceed when Turn = 1
+            -- After P0's first iteration, Turn = 1, so P1 can do one iteration
+            -- Then P1 sets Turn = 0, but P0 is stopped, so Turn stays at 0
+            -- P1 cannot proceed further (starvation)
             for I in 1 .. 3 loop
                while Turn /= My_ID loop
                   delay 0.0;
-                  -- If process 0 has stopped and it's their turn, we're stuck
-                  if Stop_Early (Other) and Turn = Other then
-                     exit; -- Can't proceed, starvation detected
-                  end if;
                end loop;
                
-               if Turn = My_ID then
-                  Completion_Count (My_ID) := Completion_Count (My_ID) + 1;
-                  Turn := Other;
+               Completion_Count (My_ID) := Completion_Count (My_ID) + 1;
+               Turn := Other;
+               
+               -- After first iteration, P0 is stopped with Turn=0
+               -- So P1 cannot continue
+               if Stop_Early (Other) and Turn = Other then
+                  exit;
                end if;
             end loop;
          end if;
@@ -668,14 +676,16 @@ procedure Peterson_Tests is
       
       delay 2.0;
       
-      -- Process 0 should have 1 completion, Process 1 should have 0 (starved)
-      if Completion_Count (0) = 1 and Completion_Count (1) = 0 then
-         End_Test (PASSED, "Starvation detected: P1 could not proceed");
+      -- P0 should have 1 completion, P1 should have 1 (can do one after P0 stops)
+      -- Actually with strict alternation, P1 can only do 1 iteration
+      if Completion_Count (0) = 1 and Completion_Count (1) = 1 then
+         End_Test (PASSED, "Starvation: P0=1, P1=1 (P1 starved after 1 iteration)");
       else
          End_Test (FAILED, "Unexpected: P0=" & Integer'Image(Completion_Count(0)) & 
                   ", P1=" & Integer'Image(Completion_Count(1)));
       end if;
    end Test_Strict_Alternation_Starvation;
+
 
    --  ====================================================================
    --  Test 9: 2-Process Peterson - No Deadlock
