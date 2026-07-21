@@ -1020,11 +1020,11 @@ procedure Peterson_Tests is
          end loop;
       end Test_Single_Worker;
       
-      Task : Test_Single_Worker;
+      Worker : Test_Single_Worker;
    begin
       Start_Test ("Edge Case - Single Process");
       
-      Task.Start (0);
+      Worker.Start (0);
       
       delay 2.0;
       
