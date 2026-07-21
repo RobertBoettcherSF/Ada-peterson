@@ -1,111 +1,137 @@
-# Ada-peterson
+# Ada Peterson's Algorithm Implementation
 
-Ada implementation of Peterson's algorithm for mutual exclusion with comprehensive test suite.
+This repository contains a complete Ada implementation of **Peterson's algorithm** for mutual exclusion, including a comprehensive test suite that verifies correctness.
 
-## Overview
+---
 
-This repository contains:
-- **peterson.adb/ads**: Main implementation with three variants of Peterson's algorithm
-  - Strict Alternation (2-process)
-  - Standard 2-Process Peterson's Algorithm
-  - N-Process Peterson's Algorithm (Filter Lock)
+## What This Code Is
 
-- **tests/peterson_tests.adb**: Comprehensive test suite with **15 tests** covering:
-  - Mutual exclusion verification
-  - Progress guarantees
-  - Bounded waiting
-  - Fairness
-  - Edge cases
-  - Scalability
-  - Starvation detection
+Peterson's algorithm is a classic **software-based mutual exclusion algorithm** that allows multiple processes (or tasks in Ada) to share a critical section without hardware support. This implementation includes three variants:
 
-## Prerequisites
+### 1. Strict Alternation (2-Process)
+- **Mechanism**: Uses a single `Turn` variable to alternate between two processes
+- **Behavior**: Processes take strict turns entering the critical section
+- **Limitation**: If one process stops, the other **starves** (cannot proceed)
+- **Use Case**: Simple turn-taking, but not suitable for dynamic workloads
 
-### Ada Compiler
-You need an Ada compiler. The most common option is GNAT (GNU Ada compiler):
+### 2. Standard 2-Process Peterson's Algorithm
+- **Mechanism**: Uses a `Flag` array (to indicate intent) + `Turn` variable (for tie-breaking)
+- **Behavior**: 
+  - Process sets its flag to indicate it wants to enter
+  - Yields turn to the other process
+  - Waits while the other's flag is set AND it's their turn
+- **Guarantees**: **Mutual exclusion**, **progress**, **bounded waiting**
+- **Use Case**: The classic, correct solution for 2 processes
 
-**Linux (Debian/Ubuntu):**
-```bash
-sudo apt install gnat
-```
+### 3. N-Process Peterson's Algorithm (Filter Lock)
+- **Mechanism**: Uses multi-level filtering with `Level` and `Last_To_Enter` arrays
+- **Behavior**: Each process must pass through N-1 levels, checking at each level if any other process is ahead
+- **Guarantees**: **Mutual exclusion** for N processes
+- **Use Case**: General solution for any number of processes
 
-**macOS (Homebrew):**
-```bash
-brew install gnat
-```
-
-**Windows:**
-Download and install from [AdaCore](https://www.adacore.com/download)
-
-## Quick Start
-
-### Build and Run the Main Program
-
-```bash
-# Navigate to the repository
-cd Ada-peterson
-
-# Build the main demonstration
-gnatmake -P peterson.gpr
-
-# Run the demonstration
-./bin/peterson
-```
-
-### Build and Run the Test Suite
-
-```bash
-# Build the tests
-gnatmake -P tests/peterson_tests.gpr
-
-# Run all tests
-./bin/peterson_tests
-```
+---
 
 ## Project Structure
 
 ```
 Ada-peterson/
-├── peterson.adb          # Main implementation
-├── peterson.ads          # Specification
-├── peterson.gpr          # Main project file
-├── README.md             # This file
-├── obj/                  # Object files (pre-created with .gitkeep)
-├── bin/                  # Executables (pre-created with .gitkeep)
+├── peterson.adb              # Main implementation with all 3 variants
+├── peterson.ads              # Procedure specification
+├── peterson.gpr              # GNAT project file for main program
+├── README.md                 # This documentation
+├── obj/                      # Object files directory (pre-created)
+│   └── .gitkeep              # Ensures Git tracks the directory
+├── bin/                      # Executables directory (pre-created)
+│   └── .gitkeep              # Ensures Git tracks the directory
 └── tests/
-    ├── peterson_tests.adb    # Test suite (15 tests)
-    └── peterson_tests.gpr    # Test project file
+    ├── peterson_tests.adb    # Comprehensive test suite (15 tests)
+    └── peterson_tests.gpr    # GNAT project file for tests
 ```
 
-## Test Suite Details
+---
 
-The test suite contains **15 tests** that all **PASS**:
+## Prerequisites
 
-### Strict Alternation Tests (3 tests)
-1. **Mutual Exclusion**: Verifies only one process in critical section at a time
-2. **Progress**: Verifies both processes complete their iterations
-3. **Starvation Detection**: Demonstrates that strict alternation can cause starvation when one process stops
+You need an **Ada compiler**. The most common is **GNAT** (GNU Ada Translator), part of GCC.
 
-### 2-Process Peterson Tests (5 tests)
-4. **Mutual Exclusion**: Verifies the Flag+Turn mechanism prevents concurrent access
-5. **Bounded Waiting**: Verifies no process waits indefinitely
-6. **Progress**: Verifies both processes make progress
-7. **No Deadlock**: Verifies processes can repeatedly enter critical section
-8. **Fairness**: Verifies fair access between processes
+### Installation
 
-### N-Process Peterson Tests (4 tests)
-9. **Mutual Exclusion**: Verifies filter algorithm with 4 processes
-10. **Progress**: Verifies all N processes complete
-11. **Scalability**: Tests with 8 processes
-12. **Bounded Waiting**: Verifies reasonable wait times
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt update
+sudo apt install gnat
+```
 
-### Edge Case Tests (3 tests)
-13. **Single Process**: Tests algorithm with only one active process
-14. **Immediate Exit**: Tests rapid entry and exit
-15. **Flag Not Set**: Tests behavior when a process doesn't set its flag
+**macOS (using Homebrew):**
+```bash
+brew install gnat
+```
 
-## Test Output
+**Windows:**
+- Download from [AdaCore](https://www.adacore.com/download)
+- Or use [Alire](https://alire.ada.dev/) package manager
 
+Verify installation:
+```bash
+gnat --version
+```
+
+---
+
+## How to Use This Code
+
+### Option 1: Run the Demonstration
+
+The main program demonstrates all three algorithm variants in sequence:
+
+```bash
+# Navigate to the repository
+cd Ada-peterson
+
+# Build the demonstration
+gnatmake -P peterson.gpr
+
+# Run it
+./bin/peterson
+```
+
+**Expected Output:**
+```
+--- Starting Strict Alternation Demo ---
+Strict Alternation : Task  0 in Critical Section.
+Strict Alternation : Task  1 in Critical Section.
+...
+
+--- Starting 2-Process Peterson Demo ---
+Peterson 2-Proc    : Task  0 in Critical Section.
+Peterson 2-Proc    : Task  1 in Critical Section.
+...
+
+--- Starting N-Process Peterson (Filter Algorithm) Demo ---
+Peterson N-Proc    : Task  0 in Critical Section.
+Peterson N-Proc    : Task  1 in Critical Section.
+...
+
+All demonstrations completed safely.
+```
+
+Each line shows a task successfully entering its critical section. The algorithms ensure **mutual exclusion** - only one task is in the critical section at any time.
+
+---
+
+### Option 2: Run the Test Suite
+
+The test suite verifies the correctness of all implementations:
+
+```bash
+# Build the tests
+gnatmake -P tests/peterson_tests.gpr
+
+# Run all 15 tests
+./bin/peterson_tests
+```
+
+**Expected Output:**
 ```
 ========================================
 Peterson Algorithm Test Suite
@@ -137,56 +163,167 @@ Test Summary:
 ALL TESTS PASSED!
 ```
 
-## Verification
+---
 
-✅ **All directories included**: `obj/` and `bin/` directories are tracked in Git (via `.gitkeep` files) - no need to create them manually
+## What the Tests Do
 
-✅ **All 15 tests pass**: The test suite has been verified to compile and run successfully with all tests passing
+The test suite contains **15 comprehensive tests** organized into 4 categories:
 
-✅ **Standard Ada compatible**: No Ada 2022 features used - compiles with standard GNAT
+### Category 1: Strict Alternation Tests (3 tests)
+| Test | Purpose | What It Verifies |
+|------|---------|------------------|
+| 1 | Mutual Exclusion | Only one process in critical section at a time |
+| 2 | Progress | Both processes complete all iterations |
+| 8 | Starvation Detection | If one process stops, the other cannot continue (demonstrates the flaw) |
 
-✅ **No compiler warnings**: Clean compilation with no warnings
+### Category 2: 2-Process Peterson Tests (5 tests)
+| Test | Purpose | What It Verifies |
+|------|---------|------------------|
+| 3 | Mutual Exclusion | Flag+Turn mechanism prevents concurrent access |
+| 4 | Bounded Waiting | No process waits indefinitely |
+| 5 | Progress | Both processes make progress |
+| 9 | No Deadlock | Processes can repeatedly enter/exit critical section |
+| 11 | Fairness | Both processes get fair access (ratio 0.5-2.0) |
+
+### Category 3: N-Process Peterson Tests (4 tests)
+| Test | Purpose | What It Verifies |
+|------|---------|------------------|
+| 6 | Mutual Exclusion | Filter algorithm works with 4 processes |
+| 7 | Progress | All N processes complete |
+| 10 | Scalability | Works correctly with 8 processes |
+| 12 | Bounded Waiting | Reasonable wait times for all processes |
+
+### Category 4: Edge Case Tests (3 tests)
+| Test | Purpose | What It Verifies |
+|------|---------|------------------|
+| 13 | Single Process | Algorithm works with only one active process |
+| 14 | Immediate Exit | Rapid entry and exit works correctly |
+| 15 | Flag Not Set | Behavior when a process doesn't set its flag |
+
+---
+
+## Key Concepts Explained
+
+### Mutual Exclusion
+The fundamental property: **At most one process can be in the critical section at any time.**
+
+All three variants guarantee this, but through different mechanisms:
+- Strict Alternation: Uses a turn variable
+- 2-Process Peterson: Uses flags + turn for tie-breaking
+- N-Process Peterson: Uses multi-level filtering
+
+### Progress
+If no process is in the critical section and some processes wish to enter, **then only those processes that are not trying to enter can participate in the decision** on which will enter next.
+
+### Bounded Waiting
+There exists a bound on the number of times that other processes are allowed to enter their critical sections **after a process has made a request to enter its critical section and before that request is granted**.
+
+### Starvation
+A situation where a process is **permanently denied access** to the critical section. Strict Alternation suffers from this if one process stops.
+
+---
 
 ## Clean Build
 
-To clean and rebuild:
+If you want to start fresh:
 
 ```bash
-# Remove object and binary files
+# Remove all build artifacts
 rm -rf obj bin
 
-# Rebuild (directories already exist in repo)
+# Rebuild everything (directories already exist in repo)
 gnatmake -P peterson.gpr
 gnatmake -P tests/peterson_tests.gpr
 ```
 
-## Understanding Peterson's Algorithm
+---
 
-### Strict Alternation
-- Uses a single `Turn` variable
-- Processes take strict turns
-- **Problem**: If one process stops, the other starves
+## Troubleshooting
 
-### 2-Process Peterson
-- Uses `Flag` array (intent to enter) + `Turn` variable (tie-breaker)
-- Process sets its flag, then yields turn to other
-- Waits while other's flag is set AND it's their turn
-- **Guarantees**: Mutual exclusion, progress, bounded waiting
+### Error: "exec directory 'bin' not found"
+**Solution**: The `obj/` and `bin/` directories are included in the repository (via `.gitkeep` files). If you see this error, ensure you're using the latest version:
+```bash
+git pull origin main
+```
+
+### Error: "gnatmake: command not found"
+**Solution**: Install GNAT as described in the Prerequisites section above.
+
+### Tests fail
+**Solution**: All 15 tests have been verified to pass. If you see failures:
+1. Ensure you have the latest code: `git pull origin main`
+2. Clean and rebuild: `rm -rf obj bin && gnatmake -P tests/peterson_tests.gpr`
+3. Report the issue with your GNAT version and OS
+
+---
+
+## Algorithm Details
+
+### Why Peterson's Algorithm Matters
+
+Peterson's algorithm is historically significant because it was one of the first **software-only** solutions to the mutual exclusion problem. It demonstrates that mutual exclusion can be achieved without special hardware instructions (like test-and-set or compare-and-swap).
+
+### Strict Alternation - The Flaw
+
+```ada
+-- Process i
+while Turn /= i loop
+   null; -- busy wait
+end loop;
+-- Critical section
+Turn := 1 - i;
+```
+
+**Problem**: If process 0 stops after setting Turn=1, process 1 can enter once, but then sets Turn=0. Now process 1 is stuck waiting for Turn=1, but process 0 is stopped. **Starvation!**
+
+### 2-Process Peterson - The Solution
+
+```ada
+-- Process i
+Flag(i) := True;
+Turn := 1 - i;
+while Flag(1-i) and Turn = 1-i loop
+   null; -- busy wait
+end loop;
+-- Critical section
+Flag(i) := False;
+```
+
+**Why it works**: 
+- If both want to enter: The one who set Turn last goes second
+- If only one wants to enter: It can proceed immediately
+- Guarantees all three properties: mutual exclusion, progress, bounded waiting
 
 ### N-Process Peterson (Filter Lock)
-- Uses multi-level filtering
-- Each process must pass through N-1 levels
-- At each level, checks if any other process is at same or higher level
-- **Guarantees**: Mutual exclusion for N processes
+
+Extends the idea to N processes using multiple levels. Each level acts as a "waiting room" - processes must pass through all levels before entering the critical section.
+
+---
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/your-feature`)
 3. Make your changes
 4. Add tests for new functionality
-5. Submit a pull request
+5. Ensure all tests pass
+6. Submit a pull request
+
+---
 
 ## License
 
-MIT License - see LICENSE file for details.
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Verification Status
+
+✅ **All directories included**: `obj/` and `bin/` are tracked in Git  
+✅ **All 15 tests pass**: Verified with no compiler warnings  
+✅ **Standard Ada**: Compatible with Ada 95/2005/2012 (no Ada 2022 features)  
+✅ **Clean compilation**: Zero warnings  
+
+---
+
+*Last updated: All tests verified passing on latest commit*
