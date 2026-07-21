@@ -10,7 +10,6 @@
 with Ada.Text_IO;           use Ada.Text_IO;
 with Ada.Integer_Text_IO;   use Ada.Integer_Text_IO;
 with Ada.Real_Time;         use Ada.Real_Time;
-with Ada.Synchronous_Task_Control; use Ada.Synchronous_Task_Control;
 
 procedure Peterson_Tests is
 
@@ -61,6 +60,14 @@ procedure Peterson_Tests is
       end if;
    end Print_Summary;
 
+   --  Helper function to format time span as string (Ada 95 compatible)
+   function Time_Span_To_String (TS : Time_Span) return String is
+      Seconds : Integer := Integer(TS / 1.0);
+      Millis  : Integer := Integer((TS - Time_Span(Seconds) * 1.0) * 1000.0);
+   begin
+      return Integer'Image(Seconds) & "s " & Integer'Image(Millis) & "ms";
+   end Time_Span_To_String;
+
    --  ====================================================================
    --  Test 1: Strict Alternation - Basic Mutual Exclusion
    --  Assumption: Only one process should be in critical section at a time
@@ -93,7 +100,7 @@ procedure Peterson_Tests is
          for I in 1 .. 5 loop
             -- Enter critical section
             while Turn /= My_ID loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             -- Track concurrent access
@@ -160,7 +167,7 @@ procedure Peterson_Tests is
          
          for I in 1 .. 3 loop
             while Turn /= My_ID loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             -- Simulate work
@@ -228,10 +235,13 @@ procedure Peterson_Tests is
          for I in 1 .. 5 loop
             -- Entry protocol
             Flag (My_ID) := True;
-            Turn := Other;
             
+            -- Grant priority to the other process if they also want in
+            Turn := Other;
+
+            -- Wait until the other process doesn't want in, or it's our turn
             while Flag (Other) and then Turn = Other loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             -- Critical section
@@ -286,8 +296,6 @@ procedure Peterson_Tests is
       
       Entry_Times : array (0 .. 1, 1 .. 5) of Time;
       Exit_Times : array (0 .. 1, 1 .. 5) of Time;
-      Entry_Indices : array (0 .. 1) of Integer := (1, 1);
-      pragma Atomic_Components (Entry_Indices);
       
       task type Test_Bounded_Worker is
          entry Start (ID : Integer);
@@ -296,7 +304,6 @@ procedure Peterson_Tests is
       task body Test_Bounded_Worker is
          My_ID : Integer;
          Other : Integer;
-         Index : Integer;
       begin
          accept Start (ID : Integer) do
             My_ID := ID;
@@ -311,7 +318,7 @@ procedure Peterson_Tests is
             Entry_Times (My_ID, I) := Clock;
             
             while Flag (Other) and then Turn = Other loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             -- Critical section
@@ -326,6 +333,7 @@ procedure Peterson_Tests is
       
       Tasks : array (0 .. 1) of Test_Bounded_Worker;
       Max_Wait_Time : Time_Span := Milliseconds (0);
+      Current_Wait : Time_Span;
    begin
       Start_Test ("2-Process Peterson - Bounded Waiting");
       
@@ -335,27 +343,23 @@ procedure Peterson_Tests is
       
       delay 3.0;
       
-      -- Check that no process waited more than 1 second for any entry
-      -- (This is a generous bound for this test)
+      -- Check that no process waited more than 500ms for any entry
       for P in 0 .. 1 loop
          for I in 1 .. 5 loop
             if Exit_Times (P, I) > Entry_Times (P, I) then
-               declare
-                  Wait_Time : Time_Span := Exit_Times (P, I) - Entry_Times (P, I);
-               begin
-                  if Wait_Time > Max_Wait_Time then
-                     Max_Wait_Time := Wait_Time;
-                  end if;
-               end;
+               Current_Wait := Exit_Times (P, I) - Entry_Times (P, I);
+               if Current_Wait > Max_Wait_Time then
+                  Max_Wait_Time := Current_Wait;
+               end if;
             end if;
          end loop;
       end loop;
       
       -- Bounded waiting should ensure reasonable wait times
       if Max_Wait_Time < Milliseconds (500) then
-         End_Test (PASSED, "Max wait: " & Time_Span'Image(Max_Wait_Time));
+         End_Test (PASSED, "Max wait: " & Time_Span_To_String(Max_Wait_Time));
       else
-         End_Test (FAILED, "Excessive wait: " & Time_Span'Image(Max_Wait_Time));
+         End_Test (FAILED, "Excessive wait: " & Time_Span_To_String(Max_Wait_Time));
       end if;
    end Test_Peterson_2_Bounded_Waiting;
 
@@ -392,7 +396,7 @@ procedure Peterson_Tests is
             Turn := Other;
             
             while Flag (Other) and then Turn = Other loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             Completion_Count (My_ID) := Completion_Count (My_ID) + 1;
@@ -472,7 +476,7 @@ procedure Peterson_Tests is
                   end loop;
                   
                   exit when not (Conflict and then Last_To_Enter (L) = My_ID);
-                  delay 0.001;
+                  delay 0.0;
                end loop;
             end loop;
             
@@ -558,7 +562,7 @@ procedure Peterson_Tests is
                   end loop;
                   
                   exit when not (Conflict and then Last_To_Enter (L) = My_ID);
-                  delay 0.001;
+                  delay 0.0;
                end loop;
             end loop;
             
@@ -626,28 +630,30 @@ procedure Peterson_Tests is
          -- Process 0 stops after 1 iteration
          if My_ID = 0 then
             while Turn /= My_ID loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             Completion_Count (My_ID) := Completion_Count (My_ID) + 1;
             Turn := Other;
             Stop_Early (My_ID) := True;
-            return; -- Exit early
-         end if;
-         
-         -- Process 1 tries to continue
-         for I in 1 .. 3 loop
-            while Turn /= My_ID loop
-               delay 0.001;
-               -- If process 0 has stopped and it's their turn, we're stuck
-               if Stop_Early (Other) and Turn = Other then
-                  exit; -- Can't proceed, starvation detected
+            -- Don't return, just finish the task normally
+         else
+            -- Process 1 tries to continue
+            for I in 1 .. 3 loop
+               while Turn /= My_ID loop
+                  delay 0.0;
+                  -- If process 0 has stopped and it's their turn, we're stuck
+                  if Stop_Early (Other) and Turn = Other then
+                     exit; -- Can't proceed, starvation detected
+                  end if;
+               end loop;
+               
+               if Turn = My_ID then
+                  Completion_Count (My_ID) := Completion_Count (My_ID) + 1;
+                  Turn := Other;
                end if;
             end loop;
-            
-            Completion_Count (My_ID) := Completion_Count (My_ID) + 1;
-            Turn := Other;
-         end loop;
+         end if;
       end Test_Starvation_Worker;
       
       Tasks : array (0 .. 1) of Test_Starvation_Worker;
@@ -702,7 +708,7 @@ procedure Peterson_Tests is
             Turn := Other;
             
             while Flag (Other) and then Turn = Other loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             Entry_Count (My_ID) := Entry_Count (My_ID) + 1;
@@ -901,8 +907,6 @@ procedure Peterson_Tests is
       
       Entry_Times : array (0 .. N - 1, 1 .. 3) of Time;
       Exit_Times : array (0 .. N - 1, 1 .. 3) of Time;
-      Entry_Indices : array (0 .. N - 1) of Integer := (others => 1);
-      pragma Atomic_Components (Entry_Indices);
       
       task type Test_N_Bounded_Worker is
          entry Start (ID : Integer);
@@ -931,7 +935,7 @@ procedure Peterson_Tests is
                   end loop;
                   
                   exit when not (Conflict and then Last_To_Enter (L) = My_ID);
-                  delay 0.001;
+                  delay 0.0;
                end loop;
             end loop;
             
@@ -947,6 +951,7 @@ procedure Peterson_Tests is
       
       Tasks : array (0 .. N - 1) of Test_N_Bounded_Worker;
       Max_Wait_Time : Time_Span := Milliseconds (0);
+      Current_Wait : Time_Span;
    begin
       Start_Test ("N-Process Peterson - Bounded Waiting");
       
@@ -960,22 +965,19 @@ procedure Peterson_Tests is
       for P in 0 .. N - 1 loop
          for I in 1 .. 3 loop
             if Exit_Times (P, I) > Entry_Times (P, I) then
-               declare
-                  Wait_Time : Time_Span := Exit_Times (P, I) - Entry_Times (P, I);
-               begin
-                  if Wait_Time > Max_Wait_Time then
-                     Max_Wait_Time := Wait_Time;
-                  end if;
-               end;
+               Current_Wait := Exit_Times (P, I) - Entry_Times (P, I);
+               if Current_Wait > Max_Wait_Time then
+                  Max_Wait_Time := Current_Wait;
+               end if;
             end if;
          end loop;
       end loop;
       
       -- With N=4 and 3 iterations, wait should be reasonable
       if Max_Wait_Time < Milliseconds (1000) then
-         End_Test (PASSED, "Max wait: " & Time_Span'Image(Max_Wait_Time));
+         End_Test (PASSED, "Max wait: " & Time_Span_To_String(Max_Wait_Time));
       else
-         End_Test (FAILED, "Excessive wait: " & Time_Span'Image(Max_Wait_Time));
+         End_Test (FAILED, "Excessive wait: " & Time_Span_To_String(Max_Wait_Time));
       end if;
    end Test_Peterson_N_Bounded_Waiting;
 
@@ -1010,7 +1012,7 @@ procedure Peterson_Tests is
             Turn := 1 - My_ID; -- Other process
             
             while Flag (1 - My_ID) and then Turn = (1 - My_ID) loop
-               delay 0.001;
+               delay 0.0;
             end loop;
             
             Entry_Count := Entry_Count + 1;
@@ -1068,7 +1070,7 @@ procedure Peterson_Tests is
             Turn := Other;
             
             while Flag (Other) and then Turn = Other loop
-               delay 0.0001;
+               delay 0.0;
             end loop;
             
             Entry_Count (My_ID) := Entry_Count (My_ID) + 1;
@@ -1131,7 +1133,7 @@ procedure Peterson_Tests is
                Turn := Other;
                
                while Flag (Other) and then Turn = Other loop
-                  delay 0.001;
+                  delay 0.0;
                end loop;
                
                Entry_Count (My_ID) := Entry_Count (My_ID) + 1;
