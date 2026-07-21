@@ -10,7 +10,7 @@
 with Ada.Text_IO;           use Ada.Text_IO;
 with Ada.Integer_Text_IO;   use Ada.Integer_Text_IO;
 with Ada.Real_Time;         use Ada.Real_Time;
-with Ada.Calendar;           use Ada.Calendar;
+with Ada.Calendar;
 
 procedure Peterson_Tests is
 
@@ -63,9 +63,9 @@ procedure Peterson_Tests is
 
    --  Helper function to format time span as string (Ada 95 compatible)
    function Time_Span_To_String (TS : Time_Span) return String is
-      Total_Seconds : Duration := to_Duration(TS);
-      Seconds : Integer := Integer(Total_Seconds);
-      Millis  : Integer := Integer((Total_Seconds - Duration(Seconds)) * 1000.0);
+      Total_Seconds : constant Duration := Ada.Calendar.to_Duration(TS);
+      Seconds : constant Integer := Integer(Total_Seconds);
+      Millis : constant Integer := Integer((Total_Seconds - Duration(Seconds)) * 1000.0);
    begin
       return Integer'Image(Seconds) & "s " & Integer'Image(Millis) & "ms";
    end Time_Span_To_String;
